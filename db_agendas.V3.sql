@@ -503,43 +503,93 @@ delimiter ;
 
 drop procedure if exists sp_modificaDatos;
 delimiter $$
-create procedure sp_modificaDatos(in idCta int,in nombr nvarchar(40), in aPatrn nvarchar(40), aMatrn nvarchar(40), in mail nvarchar(50), in pass nvarchar(50),in nPass nvarchar(50), in fNacim date, in idGpo int)
+create procedure sp_modificaDatos(in idCta int,in nombr nvarchar(40), in aPatrn nvarchar(40), aMatrn nvarchar(40), in mail nvarchar(50), in pass nvarchar(50),in nPass nvarchar(50), in fNacim date)
 begin
-	declare existe 	int;
-    declare msj		nvarchar(50);
-
+	declare existe 		int;
+    declare repetido	int;
+    declare idRol 		int;
+    declare msj			nvarchar(50);
+	
+    
 	set existe =(select count(*)from tbl_cuenta where tbl_cuenta.Psw=md5(pass));
-
+	set idRol=(select tbl_relrolcta.idRol from tbl_relrolcta where tbl_relrolcta.idCuenta=idCta);
+    set repetido =(select count(*)from tbl_relctagrp  where tbl_relctagrp.idGrupo= idGpo and tbl_relctagrp.idCuenta=idCta);
+    
+    
 	if existe = 1 then
-		if nPass = '0' then
-			update 	tbl_persona
-			set		Nombre=nombr,
-					aPaterno=aPatrn,
-					aMaterno=aMatrn,
-					fechaN=fNacim
-			where	idCuenta=idCta;
+		if idRol=1 then
+			if repetido = 0 then
+				if nPass = '0' then
+					update 	tbl_persona
+					set		Nombre=nombr,
+							aPaterno=aPatrn,
+							aMaterno=aMatrn,
+							fechaN=fNacim
+					where	idCuenta=idCta;
+							
+					update 	tbl_cuenta
+					set		Correo=mail
+					where	idCuenta=idCta;
 					
-			update 	tbl_cuenta
-			set		
-				Correo=mail
-			where
-				idCuenta=idCta;
-                
-            set msj='Exito!!! 1';
+					
+					set msj='Exito!!! (prof sin modif contra)';
+				else
+					update 	tbl_persona
+					set 	Nombre=nombr,
+							aPaterno=aPatrn,
+							aMaterno=aMatrn,
+							fechaN=fNacim
+					where 		idCuenta=idCta;
+							
+					update 	tbl_cuenta
+					set		Correo=mail,
+							Psw=md5(nPass)
+					where 	idCuenta=idCta;
+					
+					
+					set msj='Exito!!! (Prof con modif contra)';
+				end if;
+			else 
+                set msj='Grupo ya registrado para esta cuenta';
+			end if;
 		else
-			update 	tbl_persona
-			set 	Nombre=nombr,
-					aPaterno=aPatrn,
-					aMaterno=aMatrn,
-					fechaN=fNacim
-			where 	idCuenta=idCta;
+			if nPass = '0' then
+			
+				update 	tbl_persona
+				set		Nombre=nombr,
+						aPaterno=aPatrn,
+						aMaterno=aMatrn,
+						fechaN=fNacim
+				where	idCuenta=idCta;
+						
+				update 	tbl_cuenta
+				set		Correo=mail
+				where	idCuenta=idCta;
 					
-			update 	tbl_cuenta
-			set		Correo=mail,
-					Psw=md5(nPass)
-			where 	idCuenta=idCta;
-                
-            set msj='Exito!!! 2';
+				update 	tbl_relctagrp
+				set		idGrupo=idGpo
+				where 	idCuenta=idCta;
+					
+				set msj='Exito!!! (alumno sin modif contra)';
+			else
+				update 	tbl_persona
+				set 	Nombre=nombr,
+						aPaterno=aPatrn,
+						aMaterno=aMatrn,
+						fechaN=fNacim
+				where 	idCuenta=idCta;
+						
+				update 	tbl_cuenta
+				set		Correo=mail,
+						Psw=md5(nPass)
+				where 	idCuenta=idCta;
+				
+				update 	tbl_relctagrp
+				set		idGrupo=idGpo
+				where 	idCuenta=idCta;
+					
+				set msj='Exito!!! (alumno con modif contra)';
+			end if;
 		end if;
 	else
 		set msj='Contraseña incorrecta, intente de nuevo';
@@ -548,6 +598,34 @@ begin
 end $$
 delimiter ;
 
-#call sp_modificaDatos(1,'Erick','Flores','Cordero','zrk@zrk.com','mateguala6','0','1998-07-15','5');
+call sp_modificaDatos2(1,'Erick','Flores','Cordero','zrk@zrk.com','patito','0','1998-07-15','8');
+call sp_modificaDatos2(2,'Ana','Flores','Cordero','asdd@asd.com','patito','0','1998-07-15','8');
+
+#------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+#validar que no exista ya en prof
+drop procedure if exists sp_altaGpoProf;
+delimiter $$
+create procedure sp_altaGpoProf( in idCta int, in idGpo int)
+begin
+	declare idCont	int;
+    declare existe	int;
+    
+			set idCont=(select ifnull(max(idRelCtaGrp),0)+1 from tbl_relctagrp);
+			insert into tbl_relctagrp(idRelCtaGrp,idCuenta,idGrupo)
+			values(idCont,idCta,idGpo);
+end $$
+delimiter ;
+
+call sp_altaGpoProf(1,5);
+
+#------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
 
 
