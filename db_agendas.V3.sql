@@ -417,7 +417,7 @@ delimiter ;
 
 #drop view if exists v_cuentas;
 create view v_Cuentas as select tbl_Persona.idCuenta, nombre, concat(aPaterno,' ',aMaterno) as Apellidos, FechaCreacion, Correo, Boleta as No_identificacion, rolDescripcion, gpoDescripcion, descEstadoCuenta from tbl_cuenta inner join tbl_persona inner join tbl_relrolcta inner join tbl_catrol inner join tbl_relctagrp inner join tbl_catgrupos inner join tbl_estadocuenta where tbl_cuenta.idCuenta=tbl_persona.idCuenta and tbl_relrolcta.idCuenta=tbl_cuenta.idCuenta and tbl_relctagrp.idCuenta=tbl_cuenta.idCuenta and tbl_relctagrp.idGrupo=tbl_catgrupos.idGrupo and tbl_relrolcta.idRol=tbl_catrol.idRol and tbl_cuenta.idEstadoCuenta=tbl_estadocuenta.idEstadoCuenta;
-#select * from v_Cuentas;
+select * from v_Cuentas;
 
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -490,12 +490,12 @@ delimiter $$
 create procedure sp_consultaDatos(in idCta int)
 begin	
 		select nombre, aPaterno, aMaterno, Correo, fechaN, gpoDescripcion, tbl_catgrupos.idGrupo from tbl_persona inner join tbl_cuenta inner join tbl_catgrupos inner join tbl_relrolcta inner join tbl_catrol inner join tbl_estadocuenta inner join tbl_relctagrp
-        where tbl_cuenta.idCuenta=tbl_persona.idCuenta and tbl_relrolcta.idCuenta=tbl_cuenta.idCuenta and tbl_relctagrp.idCuenta=tbl_cuenta.idCuenta and tbl_relctagrp.idGrupo=tbl_catgrupos.idGrupo and tbl_relrolcta.idRol=tbl_catrol.idRol and tbl_cuenta.idEstadoCuenta=tbl_estadocuenta.idEstadoCuenta;
+        where tbl_cuenta.idCuenta=tbl_persona.idCuenta and tbl_relrolcta.idCuenta=tbl_cuenta.idCuenta and tbl_relctagrp.idCuenta=tbl_cuenta.idCuenta and tbl_relctagrp.idGrupo=tbl_catgrupos.idGrupo and tbl_relrolcta.idRol=tbl_catrol.idRol and tbl_cuenta.idEstadoCuenta=tbl_estadocuenta.idEstadoCuenta and tbl_cuenta.idCuenta=idCta;
 
 end $$
 delimiter ;
 
-#Call sp_consultaDatos(2);
+Call sp_consultaDatos(1);
 
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -503,22 +503,19 @@ delimiter ;
 
 drop procedure if exists sp_modificaDatos;
 delimiter $$
-create procedure sp_modificaDatos(in idCta int,in nombr nvarchar(40), in aPatrn nvarchar(40), aMatrn nvarchar(40), in mail nvarchar(50), in pass nvarchar(50),in nPass nvarchar(50), in fNacim date)
+create procedure sp_modificaDatos(in idCta int,in nombr nvarchar(40), in aPatrn nvarchar(40), aMatrn nvarchar(40), in mail nvarchar(50), in pass nvarchar(50),in nPass nvarchar(50), in fNacim date, in idGpo int )
 begin
 	declare existe 		int;
-    declare repetido	int;
     declare idRol 		int;
     declare msj			nvarchar(50);
 	
     
 	set existe =(select count(*)from tbl_cuenta where tbl_cuenta.Psw=md5(pass));
 	set idRol=(select tbl_relrolcta.idRol from tbl_relrolcta where tbl_relrolcta.idCuenta=idCta);
-    set repetido =(select count(*)from tbl_relctagrp  where tbl_relctagrp.idGrupo= idGpo and tbl_relctagrp.idCuenta=idCta);
     
     
 	if existe = 1 then
 		if idRol=1 then
-			if repetido = 0 then
 				if nPass = '0' then
 					update 	tbl_persona
 					set		Nombre=nombr,
@@ -532,7 +529,7 @@ begin
 					where	idCuenta=idCta;
 					
 					
-					set msj='Exito!!! (prof sin modif contra)';
+					set msj='Exito';
 				else
 					update 	tbl_persona
 					set 	Nombre=nombr,
@@ -547,11 +544,8 @@ begin
 					where 	idCuenta=idCta;
 					
 					
-					set msj='Exito!!! (Prof con modif contra)';
+					set msj='Exito';
 				end if;
-			else 
-                set msj='Grupo ya registrado para esta cuenta';
-			end if;
 		else
 			if nPass = '0' then
 			
@@ -570,7 +564,7 @@ begin
 				set		idGrupo=idGpo
 				where 	idCuenta=idCta;
 					
-				set msj='Exito!!! (alumno sin modif contra)';
+				set msj='Exito';
 			else
 				update 	tbl_persona
 				set 	Nombre=nombr,
@@ -588,7 +582,7 @@ begin
 				set		idGrupo=idGpo
 				where 	idCuenta=idCta;
 					
-				set msj='Exito!!! (alumno con modif contra)';
+				set msj='Exito';
 			end if;
 		end if;
 	else
@@ -599,33 +593,49 @@ end $$
 delimiter ;
 
 call sp_modificaDatos2(1,'Erick','Flores','Cordero','zrk@zrk.com','patito','0','1998-07-15','8');
-call sp_modificaDatos2(2,'Ana','Flores','Cordero','asdd@asd.com','patito','0','1998-07-15','8');
+call sp_modificaDatos2(2,'Ana','Flores','Cordero','asdd@asd.com','patito','0','1998-07-15','64');
 
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-#validar que no exista ya en prof
 drop procedure if exists sp_altaGpoProf;
 delimiter $$
 create procedure sp_altaGpoProf( in idCta int, in idGpo int)
 begin
 	declare idCont	int;
     declare existe	int;
-    
+    declare yaEsta	int;
+	declare msj		nvarchar(50);		
+            
+            set yaEsta=(select count(*)from tbl_relctagrp where tbl_relctagrp.idGrupo=idGpo and tbl_relctagrp.idCuenta=idCta);
+            
+		if yaEsta=0 then
 			set idCont=(select ifnull(max(idRelCtaGrp),0)+1 from tbl_relctagrp);
 			insert into tbl_relctagrp(idRelCtaGrp,idCuenta,idGrupo)
 			values(idCont,idCta,idGpo);
+            set msj=('Correcto');
+		else
+			set msj=('Grupo ya registrado');
+        end if;
+	select msj;
 end $$
 delimiter ;
 
-call sp_altaGpoProf(1,5);
+call sp_altaGpoProf(1,6);
 
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+drop procedure if exists sp_consultaGruposProf;
+delimiter $$
+create procedure sp_consultaGruposProf(in idCta int)
+begin
 
+select gpoDescripcion from tbl_relctagrp inner join tbl_catgrupos where tbl_relctagrp.idCuenta=idCta and tbl_relctagrp.idGrupo=tbl_catgrupos.idGrupo;
 
+end$$
+delimiter ;
 
+call sp_consultaGruposProf(1);
 
